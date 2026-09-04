@@ -151,9 +151,12 @@ input[type=number].no-native-spin::-webkit-outer-spin-button,
 input[type=number].no-native-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 input[type=number].no-native-spin{-moz-appearance:textfield;appearance:textfield}
 .spin-wrap{position:relative;display:block;width:100%}
-.spin-wrap input[type=number]{padding-right:34px}
+/* 按键移到输入框左侧：数值右对齐展示，不再被上下调节键遮挡；
+   !important 用于压过 .igroup .irows .field input 等更高优先级的 padding 覆盖；
+   width:100% 让输入框跟随容器宽度（被 spin-wrap 包裹后脱离 flex 拉伸，否则按固有宽度约 200px 渲染导致窄列溢出板块边界） */
+.spin-wrap input[type=number]{padding-left:40px!important;width:100%}
 .spin-btn{
-  position:absolute;right:3px;width:22px;padding:0;border:none;outline:none;
+  position:absolute;left:3px;right:auto;width:22px;padding:0;border:none;outline:none;
   cursor:pointer;user-select:none;
   border-radius:7px;
   border:1px solid rgba(214,189,142,.16);
@@ -1634,7 +1637,7 @@ function initBgfx(){
   const PALETTE=[[200,179,138],[157,176,161],[125,138,150],[255,250,232]];
   const rnd=(a,b)=>a+Math.random()*(b-a);
   const mobile=Math.min(screen.width,screen.height)<760;
-  const MAX_BLOCK=mobile?7:13,MAX_RIPPLE=mobile?8:12;
+  const MAX_BLOCK=mobile?4:8,MAX_RIPPLE=mobile?6:10;
   let W=0,H=0,DPR=1;
 
   /* 按 RGB 缓存的辉光 sprite：柔光圆盘 / 柔边光环，绘制时仅 drawImage，性能友好 */
@@ -1689,11 +1692,11 @@ function initBgfx(){
       const b={x,y,s:rnd(8,26),vy:-rnd(65,130),born:performance.now(),rgb:pick()};
       b.bornY=b.y;blocks.push(b);
     }
-    setTimeout(spawnBlock,mobile?rnd(1200,2600):rnd(800,2100));
+    setTimeout(spawnBlock,mobile?rnd(2600,5000):rnd(1900,4200));
   }
   function spawnRipples(x,y,rgb,scale){
     if(ripples.length>=MAX_RIPPLE)return;
-    const n=Math.random()<.4?3:2;                 /* 波纹 2-3 层 */
+    const n=Math.random()<.4?2:1;                 /* 波纹 1-2 层：更轻 */
     const rings=[];
     for(let i=0;i<n;i++)rings.push({delay:i*.26,maxR:(150+rnd(0,110))*scale,dur:rnd(2.1,3.1)});
     ripples.push({x,y,rgb,t0:performance.now(),rings});
@@ -1703,9 +1706,9 @@ function initBgfx(){
   window.addEventListener('pointermove',e=>{
     const now=performance.now();
     pointer={x:e.clientX,y:e.clientY,t:now};
-    if(now-lastPtrRip>420){lastPtrRip=now;spawnRipples(e.clientX,e.clientY,'255,250,232',.42);}
+    if(now-lastPtrRip>950){lastPtrRip=now;spawnRipples(e.clientX,e.clientY,'255,250,232',.26);}
   },{passive:true});
-  window.addEventListener('pointerdown',e=>spawnRipples(e.clientX,e.clientY,'255,250,232',.72),{passive:true});
+  window.addEventListener('pointerdown',e=>spawnRipples(e.clientX,e.clientY,'255,250,232',.45),{passive:true});
 
   let last=performance.now(),lastDraw=0,acc=0;
   function frame(now){
@@ -1725,7 +1728,7 @@ function initBgfx(){
       let near=0;
       if(d2<16900&&now-pointer.t<2600){           /* 光标 130px 内轻微吸引并增亮 */
         const d=Math.sqrt(d2)||1;near=1-d/130;
-        b.x+=dx/d*near*46*st;b.y+=dy/d*near*46*st;
+        b.x+=dx/d*near*26*st;b.y+=dy/d*near*26*st;
       }
       b.y+=b.vy*st;
       const over=b.y-b.bornY;
@@ -1733,14 +1736,14 @@ function initBgfx(){
       const a=Math.min(1,age/.35)*(over>0?1-over/34:1);
       const pulse=.78+.22*Math.sin(age*5+b.x);
       const R=b.s*4.2;
-      ctx.globalAlpha=a*pulse*(.6+near*.4);
+      ctx.globalAlpha=a*pulse*(.34+near*.24);
       ctx.drawImage(disc(b.rgb),b.x-R,b.y-R,R*2,R*2);    /* 内层辉光 */
-      ctx.globalAlpha=a*.4;
+      ctx.globalAlpha=a*.22;
       ctx.drawImage(disc(b.rgb),b.x-R*1.9,b.y-R*1.9,R*3.8,R*3.8);  /* 外层柔光晕 */
       ctx.globalAlpha=a;
-      ctx.fillStyle='rgba('+b.rgb+',.92)';
+      ctx.fillStyle='rgba('+b.rgb+',.55)';
       ctx.fillRect(b.x-b.s/2,b.y-b.s/2,b.s,b.s);
-      ctx.fillStyle='rgba(255,250,232,.55)';     /* 亮芯 */
+      ctx.fillStyle='rgba(255,250,232,.3)';     /* 亮芯 */
       ctx.fillRect(b.x-b.s*.22,b.y-b.s*.22,b.s*.44,b.s*.44);
     }
 
@@ -1757,10 +1760,10 @@ function initBgfx(){
         const ease=1-Math.pow(1-p,2.4);
         const r=14+ease*rg.maxR;
         const fa=(1-p)*(1-p);
-        ctx.globalAlpha=fa*.9;
+        ctx.globalAlpha=fa*.45;
         ctx.drawImage(ring(rp.rgb),rp.x-r,rp.y-r,r*2,r*2);
         const r2=r*1.22;                             /* 外层柔光晕：边缘虚化更柔 */
-        ctx.globalAlpha=fa*.32;
+        ctx.globalAlpha=fa*.15;
         ctx.drawImage(ring(rp.rgb),rp.x-r2,rp.y-r2,r2*2,r2*2);
       }
       if(!alive)ripples.splice(i,1);
